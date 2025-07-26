@@ -1,32 +1,150 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { protect, authRateLimit, resetAuthAttempts } = require('../middleware/auth');
-const authController = require('../controllers/authController');
-
 const router = express.Router();
 
-// Validation middleware
-const validateRegistration = [
+const {
+  protect,
+  authRateLimit,
+  resetAuthAttempts
+} = require('../middleware/auth');
+
+const {
+  register,
+  login,
+  logout,
+  getMe,
+  forgotPassword,
+  resetPassword,
+  verifyEmail,
+  resendVerification,
+  refreshToken,
+  changePassword
+} = require('../controllers/authController');
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     User:
+ *       type: object
+ *       required:
+ *         - name
+ *         - email
+ *         - password
+ *         - phone
+ *       properties:
+ *         name:
+ *           type: string
+ *           description: Nome completo do usuário
+ *         email:
+ *           type: string
+ *           format: email
+ *           description: Email do usuário
+ *         password:
+ *           type: string
+ *           minLength: 6
+ *           description: Senha do usuário
+ *         phone:
+ *           type: string
+ *           description: Telefone do usuário
+ *         role:
+ *           type: string
+ *           enum: [admin, driver, passenger]
+ *           default: passenger
+ *           description: Papel do usuário no sistema
+ *     LoginRequest:
+ *       type: object
+ *       required:
+ *         - email
+ *         - password
+ *       properties:
+ *         email:
+ *           type: string
+ *           format: email
+ *         password:
+ *           type: string
+ *     AuthResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *         token:
+ *           type: string
+ *         user:
+ *           $ref: '#/components/schemas/User'
+ */
+
+/**
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     summary: Registrar novo usuário
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/User'
+ *     responses:
+ *       201:
+ *         description: Usuário criado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *       400:
+ *         description: Dados inválidos
+ *       409:
+ *         description: Email já existe
+ */
+router.post('/register', [
   body('name')
     .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage('Nome deve ter entre 2 e 100 caracteres'),
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Nome deve ter entre 2 e 50 caracteres'),
   body('email')
     .isEmail()
     .normalizeEmail()
     .withMessage('Email inválido'),
   body('password')
     .isLength({ min: 6 })
-    .withMessage('Senha deve ter pelo menos 6 caracteres')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Senha deve conter pelo menos uma letra maiúscula, uma minúscula e um número'),
+    .withMessage('Senha deve ter pelo menos 6 caracteres'),
+  body('phone')
+    .matches(/^\+?[\d\s\-\(\)]+$/)
+    .withMessage('Telefone inválido'),
   body('role')
     .optional()
-    .isIn(['admin', 'organizer', 'speaker', 'participant'])
+    .isIn(['admin', 'driver', 'passenger'])
     .withMessage('Role inválido')
-];
+], register);
 
-const validateLogin = [
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Fazer login
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LoginRequest'
+ *     responses:
+ *       200:
+ *         description: Login realizado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *       401:
+ *         description: Credenciais inválidas
+ *       429:
+ *         description: Muitas tentativas de login
+ */
+router.post('/login', [
+  authRateLimit,
   body('email')
     .isEmail()
     .normalizeEmail()
@@ -34,171 +152,122 @@ const validateLogin = [
   body('password')
     .notEmpty()
     .withMessage('Senha é obrigatória')
-];
+], resetAuthAttempts, login);
 
-const validatePasswordReset = [
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Fazer logout
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logout realizado com sucesso
+ *       401:
+ *         description: Não autorizado
+ */
+router.post('/logout', protect, logout);
+
+/**
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: Obter dados do usuário logado
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dados do usuário
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/User'
+ *       401:
+ *         description: Não autorizado
+ */
+router.get('/me', protect, getMe);
+
+/**
+ * @swagger
+ * /auth/forgot-password:
+ *   post:
+ *     summary: Solicitar reset de senha
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Email de reset enviado
+ *       404:
+ *         description: Usuário não encontrado
+ */
+router.post('/forgot-password', [
   body('email')
     .isEmail()
     .normalizeEmail()
     .withMessage('Email inválido')
-];
+], forgotPassword);
 
-const validatePasswordUpdate = [
+/**
+ * @swagger
+ * /auth/reset-password/{token}:
+ *   post:
+ *     summary: Resetar senha
+ *     tags: [Authentication]
+ *     parameters:
+ *       - in: path
+ *         name: token
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Token de reset de senha
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - password
+ *             properties:
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *     responses:
+ *       200:
+ *         description: Senha alterada com sucesso
+ *       400:
+ *         description: Token inválido ou expirado
+ */
+router.post('/reset-password/:token', [
   body('password')
     .isLength({ min: 6 })
     .withMessage('Senha deve ter pelo menos 6 caracteres')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Senha deve conter pelo menos uma letra maiúscula, uma minúscula e um número')
-];
-
-// Handle validation errors
-const handleValidationErrors = (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      success: false,
-      error: 'Validation failed',
-      details: errors.array()
-    });
-  }
-  next();
-};
+], resetPassword);
 
 /**
  * @swagger
- * /api/v1/auth/register:
+ * /auth/verify-email/{token}:
  *   post:
- *     summary: Register a new user
- *     tags: [Authentication]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - name
- *               - email
- *               - password
- *             properties:
- *               name:
- *                 type: string
- *                 minLength: 2
- *                 maxLength: 100
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *                 minLength: 6
- *               role:
- *                 type: string
- *                 enum: [admin, organizer, speaker, participant]
- *                 default: participant
- *     responses:
- *       201:
- *         description: User registered successfully
- *       400:
- *         description: Validation error
- *       409:
- *         description: Email already exists
- */
-router.post('/register', validateRegistration, handleValidationErrors, authController.register);
-
-/**
- * @swagger
- * /api/v1/auth/login:
- *   post:
- *     summary: Login user
- *     tags: [Authentication]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *               password:
- *                 type: string
- *     responses:
- *       200:
- *         description: Login successful
- *       401:
- *         description: Invalid credentials
- *       429:
- *         description: Too many login attempts
- */
-router.post('/login', authRateLimit, validateLogin, handleValidationErrors, authController.login);
-
-/**
- * @swagger
- * /api/v1/auth/logout:
- *   post:
- *     summary: Logout user
- *     tags: [Authentication]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Logout successful
- *       401:
- *         description: Not authorized
- */
-router.post('/logout', protect, authController.logout);
-
-/**
- * @swagger
- * /api/v1/auth/me:
- *   get:
- *     summary: Get current user profile
- *     tags: [Authentication]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: User profile retrieved successfully
- *       401:
- *         description: Not authorized
- */
-router.get('/me', protect, authController.getMe);
-
-/**
- * @swagger
- * /api/v1/auth/forgot-password:
- *   post:
- *     summary: Request password reset
- *     tags: [Authentication]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *             properties:
- *               email:
- *                 type: string
- *                 format: email
- *     responses:
- *       200:
- *         description: Password reset email sent
- *       404:
- *         description: User not found
- */
-router.post('/forgot-password', validatePasswordReset, handleValidationErrors, authController.forgotPassword);
-
-/**
- * @swagger
- * /api/v1/auth/reset-password/{token}:
- *   put:
- *     summary: Reset password with token
+ *     summary: Verificar email
  *     tags: [Authentication]
  *     parameters:
  *       - in: path
@@ -206,92 +275,61 @@ router.post('/forgot-password', validatePasswordReset, handleValidationErrors, a
  *         required: true
  *         schema:
  *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - password
- *             properties:
- *               password:
- *                 type: string
- *                 minLength: 6
+ *         description: Token de verificação de email
  *     responses:
  *       200:
- *         description: Password reset successful
+ *         description: Email verificado com sucesso
  *       400:
- *         description: Invalid or expired token
+ *         description: Token inválido ou expirado
  */
-router.put('/reset-password/:token', validatePasswordUpdate, handleValidationErrors, authController.resetPassword);
+router.post('/verify-email/:token', verifyEmail);
 
 /**
  * @swagger
- * /api/v1/auth/verify-email/{token}:
- *   get:
- *     summary: Verify email with token
- *     tags: [Authentication]
- *     parameters:
- *       - in: path
- *         name: token
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Email verified successfully
- *       400:
- *         description: Invalid or expired token
- */
-router.get('/verify-email/:token', authController.verifyEmail);
-
-/**
- * @swagger
- * /api/v1/auth/resend-verification:
+ * /auth/resend-verification:
  *   post:
- *     summary: Resend email verification
+ *     summary: Reenviar email de verificação
  *     tags: [Authentication]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Verification email sent
- *       400:
- *         description: Email already verified
+ *         description: Email de verificação reenviado
+ *       401:
+ *         description: Não autorizado
  */
-router.post('/resend-verification', protect, authController.resendVerification);
+router.post('/resend-verification', protect, resendVerification);
 
 /**
  * @swagger
- * /api/v1/auth/refresh-token:
+ * /auth/refresh-token:
  *   post:
- *     summary: Refresh access token
+ *     summary: Renovar token
  *     tags: [Authentication]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - refreshToken
- *             properties:
- *               refreshToken:
- *                 type: string
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Token refreshed successfully
+ *         description: Token renovado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 token:
+ *                   type: string
  *       401:
- *         description: Invalid refresh token
+ *         description: Token inválido
  */
-router.post('/refresh-token', authController.refreshToken);
+router.post('/refresh-token', protect, refreshToken);
 
 /**
  * @swagger
- * /api/v1/auth/change-password:
- *   put:
- *     summary: Change password
+ * /auth/change-password:
+ *   post:
+ *     summary: Alterar senha
  *     tags: [Authentication]
  *     security:
  *       - bearerAuth: []
@@ -312,19 +350,20 @@ router.post('/refresh-token', authController.refreshToken);
  *                 minLength: 6
  *     responses:
  *       200:
- *         description: Password changed successfully
+ *         description: Senha alterada com sucesso
  *       400:
- *         description: Current password is incorrect
+ *         description: Senha atual incorreta
  *       401:
- *         description: Not authorized
+ *         description: Não autorizado
  */
-router.put('/change-password', protect, [
-  body('currentPassword').notEmpty().withMessage('Senha atual é obrigatória'),
+router.post('/change-password', [
+  protect,
+  body('currentPassword')
+    .notEmpty()
+    .withMessage('Senha atual é obrigatória'),
   body('newPassword')
     .isLength({ min: 6 })
     .withMessage('Nova senha deve ter pelo menos 6 caracteres')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
-    .withMessage('Nova senha deve conter pelo menos uma letra maiúscula, uma minúscula e um número')
-], handleValidationErrors, authController.changePassword);
+], changePassword);
 
 module.exports = router; 

@@ -1,291 +1,272 @@
-# 🎪 EventFlow - Plataforma de Gestão de Eventos
+# 🚗 Transport App
 
-Uma aplicação web completa para gestão de eventos e conferências, desenvolvida com foco em automação de testes e boas práticas de desenvolvimento.
+Uma aplicação completa de transporte urbano desenvolvida para fins de teste e aprendizado.
 
-## 🎯 Objetivo
+## 📋 Objetivo
 
-Este projeto foi desenvolvido para consolidar conhecimentos em automação de testes (API, UI, performance, etc) e criar um sistema com regras de negócio realistas para exercitar diferentes tipos de testes.
+Esta aplicação foi criada para consolidar conhecimentos em diferentes tipos de automação de testes (API, UI, Performance) e fornecer um sistema realista com regras de negócio desafiadoras para exercitar diferentes cenários de teste.
 
 ## 🏗️ Arquitetura
 
 ### Backend
 - **Node.js** + **Express.js** - Servidor REST API
-- **MongoDB** - Banco de dados principal
+- **MongoDB** + **Mongoose** - Banco de dados NoSQL
 - **Redis** - Cache e sessões
 - **Socket.IO** - Comunicação em tempo real
-- **JWT** - Autenticação
+- **JWT** - Autenticação e autorização
 - **Swagger** - Documentação da API
-- **Multer** - Upload de arquivos
+- **Multer** + **Sharp** - Upload e processamento de imagens
 - **Nodemailer** - Envio de emails
-- **Stripe** - Processamento de pagamentos
+- **Winston** - Logging estruturado
+- **Joi** - Validação de dados
+- **Express Validator** - Validação de requisições
 
 ### Frontend
-- **React** + **Vite** - Interface do usuário
+- **React** + **Vite** - Interface de usuário
 - **Tailwind CSS** - Estilização
-- **React Query** - Gerenciamento de estado
+- **React Query** - Gerenciamento de estado do servidor
 - **React Router** - Navegação
-- **Socket.IO Client** - Comunicação em tempo real
 - **React Hook Form** - Formulários
+- **Socket.IO Client** - Comunicação em tempo real
 - **Framer Motion** - Animações
+- **Recharts** - Gráficos e visualizações
 
-## 🚀 Funcionalidades
+## 🎯 Funcionalidades
 
 ### 👥 Gestão de Usuários
-- Registro e login com verificação de email
-- Perfis com diferentes roles (Admin, Organizador, Palestrante, Participante)
+- Registro e login de usuários
+- Perfis de usuário (Admin, Motorista, Passageiro)
+- Verificação de email
+- Recuperação de senha
 - Upload de avatar
-- Preferências personalizáveis
+- Preferências do usuário
 
-### 🎪 Gestão de Eventos
-- CRUD completo de eventos
-- Upload de banners e imagens
-- Categorização e tags
-- Configurações de localização (presencial, online, híbrido)
-- Sistema de sessões e palestrantes
+### 🚘 Gestão de Motoristas
+- Cadastro de motoristas
+- Verificação de documentos (CNH, documentos do veículo)
+- Sistema de avaliações
+- Controle de status (disponível, ocupado, offline)
+- Histórico de corridas e ganhos
+- Localização em tempo real
 
-### 📝 Sistema de Inscrições
-- Inscrições em eventos
-- Lista de espera
-- Campos customizáveis
-- Aprovação manual/automática
-- Check-in e check-out
+### 🚗 Gestão de Veículos
+- Cadastro de veículos
+- Verificação de documentos
+- Controle de status
+- Fotos do veículo
+- Histórico de manutenção
 
-### 💳 Pagamentos
-- Integração com Stripe
-- Diferentes tipos de ingresso
-- Preços early bird
-- Reembolsos automáticos
-
-### 💬 Chat em Tempo Real
-- Chat durante eventos
-- Sistema de Q&A
-- Enquetes interativas
-- Mensagens privadas
+### 🚖 Sistema de Corridas
+- Solicitação de corridas
+- Aceitação por motoristas
+- Acompanhamento em tempo real
+- Sistema de pagamento
+- Avaliações mútuas
+- Chat durante a corrida
+- Histórico de corridas
 
 ### 📊 Relatórios e Analytics
 - Dashboard com métricas
-- Relatórios de participação
+- Relatórios de performance
 - Exportação de dados
-- Analytics de eventos
+- Gráficos e visualizações
 
-### 🔔 Notificações
+### 🔔 Sistema de Notificações
+- Notificações em tempo real
 - Emails automáticos
-- Notificações push
-- Lembretes de eventos
-- Atualizações em tempo real
+- Push notifications (futuro)
 
-## 📁 Estrutura do Projeto
-
-```
-event-flow/
-├── backend/                 # API REST
-│   ├── src/
-│   │   ├── config/         # Configurações
-│   │   ├── controllers/    # Controladores
-│   │   ├── middleware/     # Middlewares
-│   │   ├── models/         # Modelos MongoDB
-│   │   ├── routes/         # Rotas da API
-│   │   ├── services/       # Serviços
-│   │   ├── socket/         # Socket.IO handlers
-│   │   └── utils/          # Utilitários
-│   ├── docs/              # Documentação Swagger
-│   ├── uploads/           # Arquivos enviados
-│   └── logs/              # Logs da aplicação
-├── frontend/              # Interface React
-│   ├── src/
-│   │   ├── components/    # Componentes React
-│   │   ├── pages/         # Páginas
-│   │   ├── hooks/         # Custom hooks
-│   │   ├── services/      # Serviços API
-│   │   ├── context/       # Context API
-│   │   └── utils/         # Utilitários
-│   └── public/            # Arquivos estáticos
-└── docs/                  # Documentação geral
-```
-
-## 🛠️ Instalação e Configuração
+## 🚀 Como Executar
 
 ### Pré-requisitos
-- Node.js 18+
-- MongoDB 6+
-- Redis 6+
-- Git
+- Node.js >= 18.0.0
+- MongoDB
+- Redis
+- npm ou yarn
 
-### 1. Clone o repositório
+### Instalação
+
+1. **Clone o repositório**
 ```bash
-git clone https://github.com/matheusalexan/event-flow.git
-cd event-flow
+git clone <url-do-repositorio>
+cd transport-app
 ```
 
-### 2. Configure o Backend
+2. **Instale as dependências**
 ```bash
+npm run install:all
+```
+
+3. **Configure as variáveis de ambiente**
+```bash
+# Backend
 cd backend
-npm install
 cp env.example .env
 # Edite o arquivo .env com suas configurações
 ```
 
-### 3. Configure o Frontend
+4. **Inicie os serviços**
 ```bash
-cd ../frontend
-npm install
-```
-
-### 4. Configure as Variáveis de Ambiente
-
-#### Backend (.env)
-```env
-# Server
-NODE_ENV=development
-PORT=3001
-API_VERSION=v1
-
-# Database
-MONGODB_URI=mongodb://localhost:27017/eventflow
-REDIS_URL=redis://localhost:6379
-
-# JWT
-JWT_SECRET=your-super-secret-jwt-key
-JWT_EXPIRES_IN=7d
-
-# Email (SMTP)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASS=your-app-password
-EMAIL_FROM=noreply@eventflow.com
-
-# Frontend URL
-FRONTEND_URL=http://localhost:3000
-```
-
-### 5. Inicie os Serviços
-
-#### MongoDB
-```bash
-# macOS (Homebrew)
+# MongoDB (se não estiver rodando)
 brew services start mongodb-community
 
-# Ubuntu
-sudo systemctl start mongod
-```
-
-#### Redis
-```bash
-# macOS (Homebrew)
+# Redis (se não estiver rodando)
 brew services start redis
 
-# Ubuntu
-sudo systemctl start redis
-```
-
-### 6. Execute a Aplicação
-
-#### Backend
-```bash
-cd backend
+# Inicie a aplicação
 npm run dev
 ```
 
-#### Frontend
-```bash
-cd frontend
-npm run dev
-```
+### URLs de Acesso
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:3001
+- **Documentação Swagger**: http://localhost:3001/api-docs
+- **Health Check**: http://localhost:3001/health
+
+## 📚 Documentação da API
+
+A documentação completa da API está disponível através do Swagger UI em:
+http://localhost:3001/api-docs
+
+### Principais Endpoints
+
+#### Autenticação
+- `POST /api/v1/auth/register` - Registrar usuário
+- `POST /api/v1/auth/login` - Fazer login
+- `POST /api/v1/auth/logout` - Fazer logout
+- `GET /api/v1/auth/me` - Obter dados do usuário logado
+
+#### Usuários
+- `GET /api/v1/users` - Listar usuários (admin)
+- `GET /api/v1/users/:id` - Obter usuário específico
+- `PUT /api/v1/users/profile` - Atualizar perfil
+- `PUT /api/v1/users/:id` - Atualizar usuário (admin)
+
+#### Motoristas
+- `GET /api/v1/drivers` - Buscar motoristas próximos
+- `GET /api/v1/drivers/:id` - Obter motorista específico
+
+#### Corridas
+- `GET /api/v1/rides` - Listar corridas do usuário
+- `POST /api/v1/rides` - Solicitar nova corrida
 
 ## 🧪 Testes
 
 ### Backend
 ```bash
 cd backend
-npm test              # Executa todos os testes
-npm run test:watch    # Modo watch
-npm run test:coverage # Com cobertura
+npm test
 ```
 
 ### Frontend
 ```bash
 cd frontend
-npm test              # Executa todos os testes
-npm run test:ui       # Interface visual
-npm run test:coverage # Com cobertura
+npm test
 ```
 
-## 📚 Documentação da API
+## 📁 Estrutura do Projeto
 
-A documentação da API está disponível em:
-- **Desenvolvimento**: http://localhost:3001/api-docs
-- **Swagger JSON**: http://localhost:3001/docs/swagger.json
-
-## 🔄 Branches e Versionamento
-
-### Branches Principais
-- `main` - Código de produção
-- `development` - Desenvolvimento
-
-### Branches de Funcionalidades
-1. `feat/setup-projeto` - ✅ Estrutura inicial
-2. `feat/autenticacao` - 🔄 Sistema de autenticação
-3. `feat/gestao-usuarios` - 📋 Gestão de usuários
-4. `feat/gestao-eventos` - 🎪 Gestão de eventos
-5. `feat/sistema-inscricoes` - 📝 Sistema de inscrições
-6. `feat/chat-tempo-real` - 💬 Chat em tempo real
-7. `feat/relatorios-analytics` - 📊 Relatórios e analytics
-8. `feat/frontend-completo` - 🎨 Frontend completo
-
-### Conventional Commits
 ```
-feat: adiciona nova funcionalidade
-fix: corrige bug
-docs: atualiza documentação
-style: formatação de código
-refactor: refatoração
-test: adiciona ou corrige testes
-chore: tarefas de manutenção
-```
-
-## 🚀 Deploy
-
-### Backend (Heroku)
-```bash
-cd backend
-heroku create eventflow-api
-heroku config:set NODE_ENV=production
-heroku config:set MONGODB_URI=your-mongodb-uri
-heroku config:set REDIS_URL=your-redis-url
-git push heroku main
+transport-app/
+├── backend/
+│   ├── src/
+│   │   ├── config/          # Configurações (DB, Redis)
+│   │   ├── controllers/     # Controladores da API
+│   │   ├── middleware/      # Middlewares (auth, validation)
+│   │   ├── models/          # Modelos do MongoDB
+│   │   ├── routes/          # Rotas da API
+│   │   ├── services/        # Serviços (email, etc)
+│   │   ├── socket/          # Handlers do Socket.IO
+│   │   ├── utils/           # Utilitários (logger, etc)
+│   │   └── server.js        # Servidor principal
+│   ├── logs/                # Logs da aplicação
+│   ├── uploads/             # Arquivos enviados
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── components/      # Componentes React
+│   │   ├── contexts/        # Contextos (Auth, Socket)
+│   │   ├── hooks/           # Custom hooks
+│   │   ├── pages/           # Páginas da aplicação
+│   │   ├── services/        # Serviços da API
+│   │   ├── utils/           # Utilitários
+│   │   ├── App.jsx          # Componente principal
+│   │   └── main.jsx         # Entry point
+│   └── package.json
+├── package.json
+└── README.md
 ```
 
-### Frontend (Vercel)
-```bash
-cd frontend
-vercel --prod
-```
+## 🔧 Scripts Disponíveis
+
+### Root
+- `npm run dev` - Inicia backend e frontend em desenvolvimento
+- `npm run install:all` - Instala dependências de todos os projetos
+- `npm run build` - Build do frontend
+- `npm run test` - Executa testes do backend
+
+### Backend
+- `npm run dev` - Inicia servidor em modo desenvolvimento
+- `npm start` - Inicia servidor em produção
+- `npm test` - Executa testes
+- `npm run lint` - Executa linter
+
+### Frontend
+- `npm run dev` - Inicia servidor de desenvolvimento
+- `npm run build` - Build para produção
+- `npm run preview` - Preview do build
+- `npm test` - Executa testes
+
+## 🎨 Tecnologias de Teste
+
+Esta aplicação foi projetada para suportar diferentes tipos de testes:
+
+### API Testing
+- Endpoints REST bem documentados
+- Autenticação JWT
+- Validação de dados
+- Tratamento de erros
+- Rate limiting
+
+### UI Testing
+- Interface responsiva
+- Formulários complexos
+- Navegação entre páginas
+- Estados de loading
+- Notificações
+
+### Performance Testing
+- Endpoints otimizados
+- Cache com Redis
+- Compressão de resposta
+- Rate limiting
+- Logs estruturados
+
+### E2E Testing
+- Fluxos completos de usuário
+- Autenticação
+- Solicitação de corridas
+- Chat em tempo real
+- Pagamentos
 
 ## 🤝 Contribuição
 
 1. Fork o projeto
-2. Crie uma branch para sua feature (`git checkout -b feat/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'feat: add some AmazingFeature'`)
-4. Push para a branch (`git push origin feat/AmazingFeature`)
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
 5. Abra um Pull Request
 
 ## 📄 Licença
 
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
 
 ## 👨‍💻 Autor
 
-**Matheus Macedo**
-- GitHub: [@matheusalexan](https://github.com/matheusalexan)
-- LinkedIn: [Matheus Macedo](https://linkedin.com/in/matheus-macedo)
+**Test Analyst** - Desenvolvido para fins de teste e aprendizado
 
 ## 🙏 Agradecimentos
 
-- Comunidade de QA e Devs que contribuem com feedback
-- Stack Overflow e documentações das tecnologias utilizadas
-- Inspiração em outras plataformas de eventos
-
----
-
-**EventFlow** - Transformando a forma como organizamos e participamos de eventos! 🎉 
+- Comunidade Node.js
+- Comunidade React
+- Contribuidores de todas as bibliotecas utilizadas 

@@ -1,24 +1,22 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
 
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
     required: [true, 'Nome é obrigatório'],
     trim: true,
-    maxlength: [100, 'Nome não pode ter mais de 100 caracteres']
+    maxlength: [50, 'Nome não pode ter mais que 50 caracteres']
   },
   email: {
     type: String,
     required: [true, 'Email é obrigatório'],
     unique: true,
     lowercase: true,
-    trim: true,
     match: [
       /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
-      'Por favor, insira um email válido'
+      'Por favor, adicione um email válido'
     ]
   },
   password: {
@@ -27,43 +25,19 @@ const userSchema = new mongoose.Schema({
     minlength: [6, 'Senha deve ter pelo menos 6 caracteres'],
     select: false
   },
+  phone: {
+    type: String,
+    required: [true, 'Telefone é obrigatório'],
+    match: [/^\+?[\d\s\-\(\)]+$/, 'Por favor, adicione um telefone válido']
+  },
   role: {
     type: String,
-    enum: ['admin', 'organizer', 'speaker', 'participant'],
-    default: 'participant'
+    enum: ['admin', 'driver', 'passenger'],
+    default: 'passenger'
   },
   avatar: {
     type: String,
-    default: null
-  },
-  bio: {
-    type: String,
-    maxlength: [500, 'Biografia não pode ter mais de 500 caracteres']
-  },
-  phone: {
-    type: String,
-    match: [/^[\+]?[1-9][\d]{0,15}$/, 'Por favor, insira um telefone válido']
-  },
-  company: {
-    type: String,
-    maxlength: [100, 'Empresa não pode ter mais de 100 caracteres']
-  },
-  position: {
-    type: String,
-    maxlength: [100, 'Cargo não pode ter mais de 100 caracteres']
-  },
-  website: {
-    type: String,
-    match: [
-      /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/,
-      'Por favor, insira uma URL válida'
-    ]
-  },
-  socialMedia: {
-    linkedin: String,
-    twitter: String,
-    github: String,
-    instagram: String
+    default: ''
   },
   isVerified: {
     type: Boolean,
@@ -77,56 +51,21 @@ const userSchema = new mongoose.Schema({
     type: Date
   },
   preferences: {
-    emailNotifications: {
-      type: Boolean,
-      default: true
+    notifications: {
+      email: { type: Boolean, default: true },
+      push: { type: Boolean, default: true },
+      sms: { type: Boolean, default: false }
     },
-    pushNotifications: {
-      type: Boolean,
-      default: true
-    },
-    language: {
-      type: String,
-      enum: ['pt-BR', 'en-US', 'es-ES'],
-      default: 'pt-BR'
-    },
-    timezone: {
-      type: String,
-      default: 'America/Sao_Paulo'
-    }
+    language: { type: String, default: 'pt-BR' },
+    theme: { type: String, default: 'light' }
   },
   resetPasswordToken: String,
   resetPasswordExpire: Date,
   emailVerificationToken: String,
   emailVerificationExpire: Date
 }, {
-  timestamps: true,
-  toJSON: { virtuals: true },
-  toObject: { virtuals: true }
+  timestamps: true
 });
-
-// Virtual for user's full profile
-userSchema.virtual('fullProfile').get(function() {
-  return {
-    id: this._id,
-    name: this.name,
-    email: this.email,
-    role: this.role,
-    avatar: this.avatar,
-    bio: this.bio,
-    company: this.company,
-    position: this.position,
-    isVerified: this.isVerified,
-    isActive: this.isActive,
-    createdAt: this.createdAt
-  };
-});
-
-// Index for better query performance
-userSchema.index({ email: 1 });
-userSchema.index({ role: 1 });
-userSchema.index({ isActive: 1 });
-userSchema.index({ createdAt: -1 });
 
 // Encrypt password using bcrypt
 userSchema.pre('save', async function(next) {
@@ -155,10 +94,10 @@ userSchema.methods.matchPassword = async function(enteredPassword) {
 // Generate and hash password token
 userSchema.methods.getResetPasswordToken = function() {
   // Generate token
-  const resetToken = crypto.randomBytes(20).toString('hex');
+  const resetToken = require('crypto').randomBytes(20).toString('hex');
 
   // Hash token and set to resetPasswordToken field
-  this.resetPasswordToken = crypto
+  this.resetPasswordToken = require('crypto')
     .createHash('sha256')
     .update(resetToken)
     .digest('hex');
@@ -171,9 +110,9 @@ userSchema.methods.getResetPasswordToken = function() {
 
 // Generate email verification token
 userSchema.methods.getEmailVerificationToken = function() {
-  const verificationToken = crypto.randomBytes(20).toString('hex');
+  const verificationToken = require('crypto').randomBytes(20).toString('hex');
 
-  this.emailVerificationToken = crypto
+  this.emailVerificationToken = require('crypto')
     .createHash('sha256')
     .update(verificationToken)
     .digest('hex');
@@ -187,13 +126,11 @@ userSchema.methods.getEmailVerificationToken = function() {
 userSchema.methods.hasPermission = function(permission) {
   const permissions = {
     admin: ['all'],
-    organizer: ['manage_events', 'manage_registrations', 'view_reports'],
-    speaker: ['manage_sessions', 'view_own_events'],
-    participant: ['view_events', 'register_events']
+    driver: ['manage_rides', 'view_passengers', 'update_location'],
+    passenger: ['request_ride', 'view_rides', 'rate_driver']
   };
 
-  return permissions[this.role].includes(permission) || 
-         permissions[this.role].includes('all');
+  return permissions[this.role].includes(permission) || permissions[this.role].includes('all');
 };
 
 // Static method to get users by role

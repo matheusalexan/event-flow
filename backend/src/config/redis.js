@@ -7,7 +7,11 @@ const connectRedis = async () => {
   try {
     redisClient = redis.createClient({
       url: process.env.REDIS_URL || 'redis://localhost:6379',
-      password: process.env.REDIS_PASSWORD || undefined,
+      socket: {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: process.env.REDIS_PORT || 6379,
+        password: process.env.REDIS_PASSWORD || undefined
+      }
     });
 
     redisClient.on('error', (err) => {
@@ -19,51 +23,44 @@ const connectRedis = async () => {
     });
 
     redisClient.on('ready', () => {
-      logger.info('✅ Redis Ready');
+      logger.info('🔴 Redis Ready');
     });
 
     redisClient.on('end', () => {
-      logger.warn('Redis connection ended');
+      logger.warn('🔴 Redis Connection Ended');
     });
 
     await redisClient.connect();
 
-    // Test connection
-    await redisClient.ping();
-    logger.info('🏓 Redis ping successful');
+    // Graceful shutdown
+    process.on('SIGINT', async () => {
+      if (redisClient) {
+        await redisClient.quit();
+        logger.info('Redis connection closed through app termination');
+      }
+    });
+
+    process.on('SIGTERM', async () => {
+      if (redisClient) {
+        await redisClient.quit();
+        logger.info('Redis connection closed through app termination');
+      }
+    });
 
   } catch (error) {
     logger.error('Error connecting to Redis:', error);
-    // Don't exit process for Redis connection failure
-    // Application can still work without Redis (with degraded performance)
+    // Don't exit process, Redis is optional for some features
   }
 };
 
 const getRedisClient = () => {
-  if (!redisClient) {
-    throw new Error('Redis client not initialized');
-  }
   return redisClient;
 };
 
 const closeRedis = async () => {
   if (redisClient) {
     await redisClient.quit();
-    logger.info('Redis connection closed');
   }
 };
 
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  await closeRedis();
-});
-
-process.on('SIGTERM', async () => {
-  await closeRedis();
-});
-
-module.exports = {
-  connectRedis,
-  getRedisClient,
-  closeRedis
-}; 
+module.exports = { connectRedis, getRedisClient, closeRedis }; 

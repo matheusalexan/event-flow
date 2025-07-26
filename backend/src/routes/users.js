@@ -1,68 +1,24 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { protect, authorize } = require('../middleware/auth');
-const userController = require('../controllers/userController');
-
 const router = express.Router();
 
-// Validation middleware
-const validateUserUpdate = [
-  body('name')
-    .optional()
-    .trim()
-    .isLength({ min: 2, max: 100 })
-    .withMessage('Nome deve ter entre 2 e 100 caracteres'),
-  body('bio')
-    .optional()
-    .trim()
-    .isLength({ max: 500 })
-    .withMessage('Biografia não pode ter mais de 500 caracteres'),
-  body('phone')
-    .optional()
-    .matches(/^[\+]?[1-9][\d]{0,15}$/)
-    .withMessage('Telefone inválido'),
-  body('company')
-    .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Empresa não pode ter mais de 100 caracteres'),
-  body('position')
-    .optional()
-    .trim()
-    .isLength({ max: 100 })
-    .withMessage('Cargo não pode ter mais de 100 caracteres'),
-  body('website')
-    .optional()
-    .isURL()
-    .withMessage('Website deve ser uma URL válida'),
-  body('preferences.language')
-    .optional()
-    .isIn(['pt-BR', 'en-US', 'es-ES'])
-    .withMessage('Idioma inválido'),
-  body('preferences.timezone')
-    .optional()
-    .isString()
-    .withMessage('Timezone inválido')
-];
-
-// Handle validation errors
-const handleValidationErrors = (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({
-      success: false,
-      error: 'Validation failed',
-      details: errors.array()
-    });
-  }
-  next();
-};
+const { protect, authorize } = require('../middleware/auth');
+const {
+  getUsers,
+  getUser,
+  updateProfile,
+  updateUser,
+  deleteUser,
+  uploadAvatar,
+  getUserStats,
+  exportUsers
+} = require('../controllers/userController');
 
 /**
  * @swagger
- * /api/v1/users:
+ * /users:
  *   get:
- *     summary: Get all users (Admin only)
+ *     summary: Obter todos os usuários (apenas admin)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -72,35 +28,39 @@ const handleValidationErrors = (req, res, next) => {
  *         schema:
  *           type: integer
  *           default: 1
+ *         description: Número da página
  *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
  *           default: 10
+ *         description: Itens por página
  *       - in: query
  *         name: role
  *         schema:
  *           type: string
- *           enum: [admin, organizer, speaker, participant]
+ *           enum: [admin, driver, passenger]
+ *         description: Filtrar por role
  *       - in: query
  *         name: search
  *         schema:
  *           type: string
+ *         description: Buscar por nome ou email
  *     responses:
  *       200:
- *         description: Users retrieved successfully
+ *         description: Lista de usuários
  *       401:
- *         description: Not authorized
+ *         description: Não autorizado
  *       403:
- *         description: Access forbidden
+ *         description: Acesso negado
  */
-router.get('/', protect, authorize('admin'), userController.getUsers);
+router.get('/', protect, authorize('admin'), getUsers);
 
 /**
  * @swagger
- * /api/v1/users/{id}:
+ * /users/{id}:
  *   get:
- *     summary: Get user by ID
+ *     summary: Obter usuário por ID
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -110,19 +70,20 @@ router.get('/', protect, authorize('admin'), userController.getUsers);
  *         required: true
  *         schema:
  *           type: string
+ *         description: ID do usuário
  *     responses:
  *       200:
- *         description: User retrieved successfully
+ *         description: Dados do usuário
  *       404:
- *         description: User not found
+ *         description: Usuário não encontrado
  */
-router.get('/:id', protect, userController.getUser);
+router.get('/:id', protect, getUser);
 
 /**
  * @swagger
- * /api/v1/users/profile:
+ * /users/profile:
  *   put:
- *     summary: Update current user profile
+ *     summary: Atualizar perfil do usuário logado
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -135,33 +96,34 @@ router.get('/:id', protect, userController.getUser);
  *             properties:
  *               name:
  *                 type: string
- *               bio:
- *                 type: string
  *               phone:
  *                 type: string
- *               company:
- *                 type: string
- *               position:
- *                 type: string
- *               website:
- *                 type: string
- *               socialMedia:
- *                 type: object
  *               preferences:
  *                 type: object
  *     responses:
  *       200:
- *         description: Profile updated successfully
+ *         description: Perfil atualizado
  *       400:
- *         description: Validation error
+ *         description: Dados inválidos
  */
-router.put('/profile', protect, validateUserUpdate, handleValidationErrors, userController.updateProfile);
+router.put('/profile', [
+  protect,
+  body('name')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Nome deve ter entre 2 e 50 caracteres'),
+  body('phone')
+    .optional()
+    .matches(/^\+?[\d\s\-\(\)]+$/)
+    .withMessage('Telefone inválido')
+], updateProfile);
 
 /**
  * @swagger
- * /api/v1/users/{id}:
+ * /users/{id}:
  *   put:
- *     summary: Update user (Admin only)
+ *     summary: Atualizar usuário (apenas admin)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -182,23 +144,49 @@ router.put('/profile', protect, validateUserUpdate, handleValidationErrors, user
  *                 type: string
  *               email:
  *                 type: string
+ *               phone:
+ *                 type: string
  *               role:
  *                 type: string
+ *                 enum: [admin, driver, passenger]
  *               isActive:
  *                 type: boolean
  *     responses:
  *       200:
- *         description: User updated successfully
+ *         description: Usuário atualizado
+ *       400:
+ *         description: Dados inválidos
  *       403:
- *         description: Access forbidden
+ *         description: Acesso negado
  */
-router.put('/:id', protect, authorize('admin'), userController.updateUser);
+router.put('/:id', [
+  protect,
+  authorize('admin'),
+  body('name')
+    .optional()
+    .trim()
+    .isLength({ min: 2, max: 50 })
+    .withMessage('Nome deve ter entre 2 e 50 caracteres'),
+  body('email')
+    .optional()
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Email inválido'),
+  body('phone')
+    .optional()
+    .matches(/^\+?[\d\s\-\(\)]+$/)
+    .withMessage('Telefone inválido'),
+  body('role')
+    .optional()
+    .isIn(['admin', 'driver', 'passenger'])
+    .withMessage('Role inválido')
+], updateUser);
 
 /**
  * @swagger
- * /api/v1/users/{id}:
+ * /users/{id}:
  *   delete:
- *     summary: Delete user (Admin only)
+ *     summary: Deletar usuário (apenas admin)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -210,26 +198,22 @@ router.put('/:id', protect, authorize('admin'), userController.updateUser);
  *           type: string
  *     responses:
  *       200:
- *         description: User deleted successfully
+ *         description: Usuário deletado
  *       403:
- *         description: Access forbidden
+ *         description: Acesso negado
+ *       404:
+ *         description: Usuário não encontrado
  */
-router.delete('/:id', protect, authorize('admin'), userController.deleteUser);
+router.delete('/:id', protect, authorize('admin'), deleteUser);
 
 /**
  * @swagger
- * /api/v1/users/{id}/avatar:
+ * /users/avatar:
  *   post:
- *     summary: Upload user avatar
+ *     summary: Upload de avatar
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
  *     requestBody:
  *       required: true
  *       content:
@@ -242,33 +226,33 @@ router.delete('/:id', protect, authorize('admin'), userController.deleteUser);
  *                 format: binary
  *     responses:
  *       200:
- *         description: Avatar uploaded successfully
+ *         description: Avatar atualizado
  *       400:
- *         description: Invalid file
+ *         description: Arquivo inválido
  */
-router.post('/:id/avatar', protect, userController.uploadAvatar);
+router.post('/avatar', protect, uploadAvatar);
 
 /**
  * @swagger
- * /api/v1/users/stats:
+ * /users/stats/overview:
  *   get:
- *     summary: Get user statistics (Admin only)
+ *     summary: Estatísticas de usuários (apenas admin)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Statistics retrieved successfully
+ *         description: Estatísticas dos usuários
  *       403:
- *         description: Access forbidden
+ *         description: Acesso negado
  */
-router.get('/stats/overview', protect, authorize('admin'), userController.getUserStats);
+router.get('/stats/overview', protect, authorize('admin'), getUserStats);
 
 /**
  * @swagger
- * /api/v1/users/export:
+ * /users/export/data:
  *   get:
- *     summary: Export users data (Admin only)
+ *     summary: Exportar dados de usuários (apenas admin)
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
@@ -279,12 +263,13 @@ router.get('/stats/overview', protect, authorize('admin'), userController.getUse
  *           type: string
  *           enum: [csv, json]
  *           default: csv
+ *         description: Formato de exportação
  *     responses:
  *       200:
- *         description: Users data exported successfully
+ *         description: Dados exportados
  *       403:
- *         description: Access forbidden
+ *         description: Acesso negado
  */
-router.get('/export/data', protect, authorize('admin'), userController.exportUsers);
+router.get('/export/data', protect, authorize('admin'), exportUsers);
 
 module.exports = router; 

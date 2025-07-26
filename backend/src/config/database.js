@@ -3,7 +3,7 @@ const logger = require('../utils/logger');
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
+    const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/transport_app', {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
@@ -17,10 +17,6 @@ const connectDB = async () => {
 
     mongoose.connection.on('disconnected', () => {
       logger.warn('MongoDB disconnected');
-    });
-
-    mongoose.connection.on('reconnected', () => {
-      logger.info('MongoDB reconnected');
     });
 
     // Graceful shutdown

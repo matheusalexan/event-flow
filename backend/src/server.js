@@ -4,12 +4,14 @@ const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 require('dotenv').config();
 
 const connectDB = require('./config/database');
-const connectRedis = require('./config/redis');
+const { connectRedis } = require('./config/redis');
 const logger = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');
 const notFound = require('./middleware/notFound');
@@ -17,12 +19,13 @@ const notFound = require('./middleware/notFound');
 // Import routes
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
-const eventRoutes = require('./routes/events');
-const registrationRoutes = require('./routes/registrations');
-const paymentRoutes = require('./routes/payments');
-const notificationRoutes = require('./routes/notifications');
+const driverRoutes = require('./routes/drivers');
+const passengerRoutes = require('./routes/passengers');
+const rideRoutes = require('./routes/rides');
+const routeRoutes = require('./routes/routes');
+const vehicleRoutes = require('./routes/vehicles');
 
-// Import socket handlers
+// Import socket handler
 const socketHandler = require('./socket/socketHandler');
 
 const app = express();
@@ -40,15 +43,39 @@ const io = new Server(server, {
 connectDB();
 connectRedis();
 
-// Security middleware
-app.use(helmet());
-app.use(compression());
+// Swagger configuration
+const swaggerOptions = {
+  definition: {
+    openapi: '3.0.0',
+    info: {
+      title: 'Transport App API',
+      version: '1.0.0',
+      description: 'API para aplicação de transporte urbano',
+      contact: {
+        name: 'API Support',
+        email: 'support@transportapp.com'
+      }
+    },
+    servers: [
+      {
+        url: `http://localhost:${process.env.PORT || 3001}/api/v1`,
+        description: 'Development server'
+      }
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT'
+        }
+      }
+    }
+  },
+  apis: ['./src/routes/*.js']
+};
 
-// CORS configuration
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || "http://localhost:3000",
-  credentials: true
-}));
+const specs = swaggerJsdoc(swaggerOptions);
 
 // Rate limiting
 const limiter = rateLimit({
@@ -58,22 +85,18 @@ const limiter = rateLimit({
     error: 'Too many requests from this IP, please try again later.'
   }
 });
-app.use('/api/', limiter);
 
-// Logging
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-} else {
-  app.use(morgan('combined'));
-}
-
-// Body parsing middleware
+// Middleware
+app.use(helmet());
+app.use(compression());
+app.use(cors({
+  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Static files
-app.use('/uploads', express.static('uploads'));
-app.use('/public', express.static('public'));
+app.use(morgan('combined', { stream: { write: message => logger.info(message.trim()) } }));
+app.use(limiter);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -85,23 +108,19 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
-const apiVersion = process.env.API_VERSION || 'v1';
-app.use(`/api/${apiVersion}/auth`, authRoutes);
-app.use(`/api/${apiVersion}/users`, userRoutes);
-app.use(`/api/${apiVersion}/events`, eventRoutes);
-app.use(`/api/${apiVersion}/registrations`, registrationRoutes);
-app.use(`/api/${apiVersion}/payments`, paymentRoutes);
-app.use(`/api/${apiVersion}/notifications`, notificationRoutes);
+// API routes
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/drivers', driverRoutes);
+app.use('/api/v1/passengers', passengerRoutes);
+app.use('/api/v1/rides', rideRoutes);
+app.use('/api/v1/routes', routeRoutes);
+app.use('/api/v1/vehicles', vehicleRoutes);
 
 // Swagger documentation
-if (process.env.NODE_ENV === 'development') {
-  const swaggerUi = require('swagger-ui-express');
-  const swaggerSpec = require('../docs/swagger.json');
-  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-}
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
-// Socket.IO connection handling
+// Socket.IO connection
 socketHandler(io);
 
 // Error handling middleware
@@ -111,9 +130,9 @@ app.use(errorHandler);
 const PORT = process.env.PORT || 3001;
 
 server.listen(PORT, () => {
-  logger.info(`🚀 EventFlow Server running on port ${PORT}`);
-  logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
-  logger.info(`🏥 Health Check: http://localhost:${PORT}/health`);
+  logger.info(`🚗 Transport App Server running on port ${PORT}`);
+  logger.info(`📚 API Documentation available at http://localhost:${PORT}/api-docs`);
+  logger.info(`🔗 Health check at http://localhost:${PORT}/health`);
 });
 
 // Graceful shutdown
@@ -121,15 +140,6 @@ process.on('SIGTERM', () => {
   logger.info('SIGTERM received, shutting down gracefully');
   server.close(() => {
     logger.info('Process terminated');
-    process.exit(0);
-  });
-});
-
-process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down gracefully');
-  server.close(() => {
-    logger.info('Process terminated');
-    process.exit(0);
   });
 });
 

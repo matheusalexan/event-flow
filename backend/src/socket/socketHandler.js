@@ -28,253 +28,240 @@ const socketHandler = (io) => {
   });
 
   io.on('connection', (socket) => {
-    logger.info(`User connected: ${socket.user.name} (${socket.user.id})`);
+    logger.info(`User connected: ${socket.user.name} (${socket.user._id})`);
 
     // Join user to their personal room
-    socket.join(`user:${socket.user.id}`);
+    socket.join(`user_${socket.user._id}`);
 
-    // Join user to events they're registered for
-    socket.on('join-event', (eventId) => {
-      socket.join(`event:${eventId}`);
-      logger.info(`User ${socket.user.name} joined event ${eventId}`);
+    // Join driver to driver room if applicable
+    if (socket.user.role === 'driver') {
+      socket.join('drivers');
+    }
+
+    // Join passenger to passenger room if applicable
+    if (socket.user.role === 'passenger') {
+      socket.join('passengers');
+    }
+
+    // Handle ride request
+    socket.on('request-ride', async (data) => {
+      try {
+        logger.info(`Ride requested by ${socket.user.name}:`, data);
+        
+        // Notify nearby drivers
+        socket.to('drivers').emit('new-ride-request', {
+          ...data,
+          passenger: {
+            id: socket.user._id,
+            name: socket.user.name,
+            rating: socket.user.rating || 0
+          }
+        });
+
+        // Confirm to passenger
+        socket.emit('ride-requested', {
+          message: 'Solicitação enviada aos motoristas próximos',
+          requestId: Date.now().toString()
+        });
+      } catch (error) {
+        logger.error('Error handling ride request:', error);
+        socket.emit('error', { message: 'Erro ao solicitar corrida' });
+      }
     });
 
-    // Leave event room
-    socket.on('leave-event', (eventId) => {
-      socket.leave(`event:${eventId}`);
-      logger.info(`User ${socket.user.name} left event ${eventId}`);
+    // Handle ride acceptance
+    socket.on('accept-ride', async (data) => {
+      try {
+        logger.info(`Ride accepted by ${socket.user.name}:`, data);
+        
+        // Notify passenger
+        socket.to(`user_${data.passengerId}`).emit('ride-accepted', {
+          driver: {
+            id: socket.user._id,
+            name: socket.user.name,
+            rating: socket.user.rating || 0
+          },
+          estimatedArrival: data.estimatedArrival,
+          vehicleInfo: data.vehicleInfo
+        });
+
+        // Join ride room
+        socket.join(`ride_${data.rideId}`);
+        socket.to(`user_${data.passengerId}`).socketsJoin(`ride_${data.rideId}`);
+      } catch (error) {
+        logger.error('Error handling ride acceptance:', error);
+        socket.emit('error', { message: 'Erro ao aceitar corrida' });
+      }
+    });
+
+    // Handle location updates
+    socket.on('update-location', async (data) => {
+      try {
+        logger.info(`Location update from ${socket.user.name}:`, data);
+        
+        // Broadcast to ride room if in a ride
+        if (data.rideId) {
+          socket.to(`ride_${data.rideId}`).emit('location-updated', {
+            userId: socket.user._id,
+            location: data.location,
+            timestamp: new Date()
+          });
+        }
+      } catch (error) {
+        logger.error('Error handling location update:', error);
+      }
+    });
+
+    // Handle ride status updates
+    socket.on('update-ride-status', async (data) => {
+      try {
+        logger.info(`Ride status update from ${socket.user.name}:`, data);
+        
+        socket.to(`ride_${data.rideId}`).emit('ride-status-updated', {
+          status: data.status,
+          updatedBy: socket.user._id,
+          timestamp: new Date(),
+          message: data.message
+        });
+      } catch (error) {
+        logger.error('Error handling ride status update:', error);
+      }
     });
 
     // Handle chat messages
-    socket.on('send-message', (data) => {
-      const { eventId, message, type = 'text' } = data;
-      
-      if (!message || !eventId) {
-        return;
+    socket.on('send-message', async (data) => {
+      try {
+        logger.info(`Message from ${socket.user.name}:`, data);
+        
+        const messageData = {
+          id: Date.now().toString(),
+          sender: {
+            id: socket.user._id,
+            name: socket.user.name,
+            role: socket.user.role
+          },
+          message: data.message,
+          timestamp: new Date()
+        };
+
+        socket.to(`ride_${data.rideId}`).emit('new-message', messageData);
+      } catch (error) {
+        logger.error('Error handling message:', error);
+        socket.emit('error', { message: 'Erro ao enviar mensagem' });
       }
-
-      const messageData = {
-        id: Date.now().toString(),
-        eventId,
-        userId: socket.user.id,
-        userName: socket.user.name,
-        userAvatar: socket.user.avatar,
-        message,
-        type,
-        timestamp: new Date().toISOString()
-      };
-
-      // Broadcast to event room
-      io.to(`event:${eventId}`).emit('new-message', messageData);
-      
-      logger.info(`Message sent in event ${eventId} by ${socket.user.name}`);
     });
 
     // Handle typing indicators
-    socket.on('typing-start', (eventId) => {
-      socket.to(`event:${eventId}`).emit('user-typing', {
-        userId: socket.user.id,
+    socket.on('typing-start', (data) => {
+      socket.to(`ride_${data.rideId}`).emit('user-typing', {
+        userId: socket.user._id,
         userName: socket.user.name,
-        eventId
+        isTyping: true
       });
     });
 
-    socket.on('typing-stop', (eventId) => {
-      socket.to(`event:${eventId}`).emit('user-stop-typing', {
-        userId: socket.user.id,
-        eventId
+    socket.on('typing-stop', (data) => {
+      socket.to(`ride_${data.rideId}`).emit('user-typing', {
+        userId: socket.user._id,
+        userName: socket.user.name,
+        isTyping: false
       });
     });
 
-    // Handle Q&A
-    socket.on('ask-question', (data) => {
-      const { eventId, question } = data;
-      
-      if (!question || !eventId) {
-        return;
+    // Handle ride completion
+    socket.on('complete-ride', async (data) => {
+      try {
+        logger.info(`Ride completed by ${socket.user.name}:`, data);
+        
+        socket.to(`ride_${data.rideId}`).emit('ride-completed', {
+          completedBy: socket.user._id,
+          timestamp: new Date(),
+          finalPrice: data.finalPrice,
+          distance: data.distance,
+          duration: data.duration
+        });
+
+        // Leave ride room
+        socket.leave(`ride_${data.rideId}`);
+      } catch (error) {
+        logger.error('Error handling ride completion:', error);
       }
-
-      const questionData = {
-        id: Date.now().toString(),
-        eventId,
-        userId: socket.user.id,
-        userName: socket.user.name,
-        userAvatar: socket.user.avatar,
-        question,
-        timestamp: new Date().toISOString(),
-        answered: false
-      };
-
-      // Broadcast to event room
-      io.to(`event:${eventId}`).emit('new-question', questionData);
-      
-      logger.info(`Question asked in event ${eventId} by ${socket.user.name}`);
     });
 
-    // Handle question answers (speakers/organizers only)
-    socket.on('answer-question', (data) => {
-      const { questionId, answer, eventId } = data;
-      
-      if (!answer || !questionId || !eventId) {
-        return;
+    // Handle ride cancellation
+    socket.on('cancel-ride', async (data) => {
+      try {
+        logger.info(`Ride cancelled by ${socket.user.name}:`, data);
+        
+        socket.to(`ride_${data.rideId}`).emit('ride-cancelled', {
+          cancelledBy: socket.user._id,
+          reason: data.reason,
+          timestamp: new Date()
+        });
+
+        // Leave ride room
+        socket.leave(`ride_${data.rideId}`);
+      } catch (error) {
+        logger.error('Error handling ride cancellation:', error);
       }
-
-      // Check if user is speaker or organizer
-      if (!['speaker', 'organizer', 'admin'].includes(socket.user.role)) {
-        return;
-      }
-
-      const answerData = {
-        questionId,
-        eventId,
-        answeredBy: socket.user.id,
-        answeredByName: socket.user.name,
-        answer,
-        timestamp: new Date().toISOString()
-      };
-
-      // Broadcast to event room
-      io.to(`event:${eventId}`).emit('question-answered', answerData);
-      
-      logger.info(`Question answered in event ${eventId} by ${socket.user.name}`);
     });
 
-    // Handle polls
-    socket.on('create-poll', (data) => {
-      const { eventId, question, options } = data;
-      
-      if (!question || !options || !eventId) {
-        return;
+    // Handle driver status updates
+    socket.on('update-driver-status', async (data) => {
+      try {
+        logger.info(`Driver status update from ${socket.user.name}:`, data);
+        
+        if (socket.user.role === 'driver') {
+          socket.to('passengers').emit('driver-status-updated', {
+            driverId: socket.user._id,
+            status: data.status,
+            location: data.location
+          });
+        }
+      } catch (error) {
+        logger.error('Error handling driver status update:', error);
       }
-
-      // Check if user is speaker or organizer
-      if (!['speaker', 'organizer', 'admin'].includes(socket.user.role)) {
-        return;
-      }
-
-      const pollData = {
-        id: Date.now().toString(),
-        eventId,
-        createdBy: socket.user.id,
-        createdByName: socket.user.name,
-        question,
-        options: options.map(option => ({
-          id: option.id,
-          text: option.text,
-          votes: 0
-        })),
-        timestamp: new Date().toISOString(),
-        active: true
-      };
-
-      // Broadcast to event room
-      io.to(`event:${eventId}`).emit('new-poll', pollData);
-      
-      logger.info(`Poll created in event ${eventId} by ${socket.user.name}`);
     });
 
-    // Handle poll votes
-    socket.on('vote-poll', (data) => {
-      const { pollId, optionId, eventId } = data;
-      
-      if (!pollId || !optionId || !eventId) {
-        return;
-      }
-
-      const voteData = {
-        pollId,
-        optionId,
-        eventId,
-        userId: socket.user.id,
-        timestamp: new Date().toISOString()
-      };
-
-      // Broadcast to event room
-      io.to(`event:${eventId}`).emit('poll-vote', voteData);
-      
-      logger.info(`Poll vote cast in event ${eventId} by ${socket.user.name}`);
-    });
-
-    // Handle user status updates
-    socket.on('update-status', (data) => {
-      const { eventId, status } = data;
-      
-      const statusData = {
-        userId: socket.user.id,
-        userName: socket.user.name,
-        eventId,
-        status, // 'online', 'away', 'busy'
-        timestamp: new Date().toISOString()
-      };
-
-      // Broadcast to event room
-      socket.to(`event:${eventId}`).emit('user-status-update', statusData);
-    });
-
-    // Handle private messages
-    socket.on('private-message', (data) => {
-      const { recipientId, message } = data;
-      
-      if (!message || !recipientId) {
-        return;
-      }
-
-      const messageData = {
-        id: Date.now().toString(),
-        senderId: socket.user.id,
-        senderName: socket.user.name,
-        senderAvatar: socket.user.avatar,
-        recipientId,
-        message,
-        timestamp: new Date().toISOString()
-      };
-
-      // Send to recipient
-      io.to(`user:${recipientId}`).emit('private-message', messageData);
-      
-      // Send confirmation to sender
-      socket.emit('message-sent', messageData);
-      
-      logger.info(`Private message sent from ${socket.user.name} to user ${recipientId}`);
-    });
-
-    // Handle disconnection
+    // Handle disconnect
     socket.on('disconnect', () => {
-      logger.info(`User disconnected: ${socket.user.name} (${socket.user.id})`);
+      logger.info(`User disconnected: ${socket.user.name} (${socket.user._id})`);
       
-      // Notify other users in the same events
+      // Notify others in ride rooms
       socket.rooms.forEach(room => {
-        if (room.startsWith('event:')) {
+        if (room.startsWith('ride_')) {
           socket.to(room).emit('user-disconnected', {
-            userId: socket.user.id,
+            userId: socket.user._id,
             userName: socket.user.name,
-            eventId: room.replace('event:', '')
+            timestamp: new Date()
           });
         }
       });
     });
   });
 
-  // Handle server events
-  const handleEventUpdate = (eventId, updateType, data) => {
-    io.to(`event:${eventId}`).emit('event-update', {
-      type: updateType,
-      data,
-      timestamp: new Date().toISOString()
-    });
+  // Server-side event emitters
+  const handleRideUpdate = (rideId, event, data) => {
+    io.to(`ride_${rideId}`).emit(event, data);
   };
 
-  const handleUserNotification = (userId, notification) => {
-    io.to(`user:${userId}`).emit('notification', {
-      ...notification,
-      timestamp: new Date().toISOString()
-    });
+  const handleUserNotification = (userId, event, data) => {
+    io.to(`user_${userId}`).emit(event, data);
   };
 
-  // Export functions for use in other parts of the application
+  const handleDriverNotification = (event, data) => {
+    io.to('drivers').emit(event, data);
+  };
+
+  const handlePassengerNotification = (event, data) => {
+    io.to('passengers').emit(event, data);
+  };
+
   return {
-    handleEventUpdate,
-    handleUserNotification
+    handleRideUpdate,
+    handleUserNotification,
+    handleDriverNotification,
+    handlePassengerNotification
   };
 };
 

@@ -1,24 +1,24 @@
 const express = require('express');
-const { protect, authorize } = require('../middleware/auth');
-
 const router = express.Router();
+
+const { protect } = require('../middleware/auth');
 
 /**
  * @swagger
- * /api/v1/registrations:
+ * /passengers:
  *   get:
- *     summary: Get user registrations
- *     tags: [Registrations]
+ *     summary: Obter dados do passageiro logado
+ *     tags: [Passengers]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Registrations retrieved successfully
+ *         description: Dados do passageiro
  */
 router.get('/', protect, (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Registrations routes - to be implemented'
+    message: 'Endpoint de passageiros - implementar lógica'
   });
 });
 

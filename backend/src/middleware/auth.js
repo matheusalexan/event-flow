@@ -1,54 +1,54 @@
 const jwt = require('jsonwebtoken');
+const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
 const logger = require('../utils/logger');
 
-// Protect routes - require authentication
-const protect = async (req, res, next) => {
+// Protect routes
+const protect = asyncHandler(async (req, res, next) => {
   let token;
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
+    try {
+      // Get token from header
+      token = req.headers.authorization.split(' ')[1];
+
+      // Verify token
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+      // Get user from the token
+      req.user = await User.findById(decoded.id).select('-password');
+
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          error: 'Usuário não encontrado'
+        });
+      }
+
+      if (!req.user.isActive) {
+        return res.status(401).json({
+          success: false,
+          error: 'Usuário inativo'
+        });
+      }
+
+      next();
+    } catch (error) {
+      logger.error('Token verification error:', error);
+      return res.status(401).json({
+        success: false,
+        error: 'Token inválido'
+      });
+    }
   }
 
-  // Make sure token exists
   if (!token) {
     return res.status(401).json({
       success: false,
-      error: 'Not authorized to access this route'
+      error: 'Token não fornecido'
     });
   }
-
-  try {
-    // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    // Get user from token
-    const user = await User.findById(decoded.id).select('-password');
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        error: 'User not found'
-      });
-    }
-
-    if (!user.isActive) {
-      return res.status(401).json({
-        success: false,
-        error: 'User account is deactivated'
-      });
-    }
-
-    req.user = user;
-    next();
-  } catch (error) {
-    logger.error('JWT verification error:', error);
-    return res.status(401).json({
-      success: false,
-      error: 'Not authorized to access this route'
-    });
-  }
-};
+});
 
 // Grant access to specific roles
 const authorize = (...roles) => {
@@ -56,14 +56,14 @@ const authorize = (...roles) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        error: 'User not authenticated'
+        error: 'Usuário não autenticado'
       });
     }
 
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        error: `User role ${req.user.role} is not authorized to access this route`
+        error: `Usuário com role ${req.user.role} não tem permissão para acessar este recurso`
       });
     }
 
@@ -77,14 +77,14 @@ const checkPermission = (permission) => {
     if (!req.user) {
       return res.status(401).json({
         success: false,
-        error: 'User not authenticated'
+        error: 'Usuário não autenticado'
       });
     }
 
     if (!req.user.hasPermission(permission)) {
       return res.status(403).json({
         success: false,
-        error: `User does not have permission: ${permission}`
+        error: `Usuário não tem permissão: ${permission}`
       });
     }
 
@@ -92,82 +92,79 @@ const checkPermission = (permission) => {
   };
 };
 
-// Optional authentication - doesn't fail if no token
-const optionalAuth = async (req, res, next) => {
+// Optional authentication (doesn't block if no token)
+const optionalAuth = asyncHandler(async (req, res, next) => {
   let token;
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
-  }
-
-  if (token) {
     try {
+      token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.id).select('-password');
-      
-      if (user && user.isActive) {
-        req.user = user;
-      }
+      req.user = await User.findById(decoded.id).select('-password');
     } catch (error) {
-      // Token is invalid, but we don't fail the request
-      logger.warn('Invalid token in optional auth:', error.message);
+      // Don't block, just don't set user
+      logger.warn('Optional auth failed:', error.message);
     }
   }
 
   next();
-};
+});
 
 // Rate limiting for authentication attempts
-const authRateLimit = (req, res, next) => {
+const authRateLimit = asyncHandler(async (req, res, next) => {
   const { getRedisClient } = require('../config/redis');
-  
+  const redisClient = getRedisClient();
+
+  if (!redisClient) {
+    return next(); // Skip rate limiting if Redis is not available
+  }
+
+  const ip = req.ip;
+  const key = `auth_attempts:${ip}`;
+  const maxAttempts = 5;
+  const windowMs = 15 * 60 * 1000; // 15 minutes
+
   try {
-    const redisClient = getRedisClient();
-    const key = `auth_attempts:${req.ip}`;
-    const maxAttempts = 5;
-    const windowMs = 15 * 60 * 1000; // 15 minutes
+    const attempts = await redisClient.get(key);
+    const currentAttempts = attempts ? parseInt(attempts) : 0;
 
-    redisClient.get(key, (err, attempts) => {
-      if (err) {
-        logger.error('Redis error in auth rate limit:', err);
-        return next(); // Continue without rate limiting if Redis fails
-      }
+    if (currentAttempts >= maxAttempts) {
+      return res.status(429).json({
+        success: false,
+        error: 'Muitas tentativas de login. Tente novamente em 15 minutos.'
+      });
+    }
 
-      const currentAttempts = parseInt(attempts) || 0;
+    await redisClient.incr(key);
+    if (currentAttempts === 0) {
+      await redisClient.expire(key, Math.floor(windowMs / 1000));
+    }
 
-      if (currentAttempts >= maxAttempts) {
-        return res.status(429).json({
-          success: false,
-          error: 'Too many authentication attempts. Please try again later.'
-        });
-      }
-
-      // Increment attempts
-      redisClient.incr(key);
-      redisClient.expire(key, Math.floor(windowMs / 1000));
-
-      next();
-    });
-  } catch (error) {
-    // If Redis is not available, continue without rate limiting
     next();
-  }
-};
-
-// Reset auth attempts on successful login
-const resetAuthAttempts = (req, res, next) => {
-  const { getRedisClient } = require('../config/redis');
-  
-  try {
-    const redisClient = getRedisClient();
-    const key = `auth_attempts:${req.ip}`;
-    redisClient.del(key);
   } catch (error) {
-    // Ignore Redis errors
+    logger.error('Rate limiting error:', error);
+    next(); // Continue if rate limiting fails
   }
-  
+});
+
+// Reset authentication attempts on successful login
+const resetAuthAttempts = asyncHandler(async (req, res, next) => {
+  const { getRedisClient } = require('../config/redis');
+  const redisClient = getRedisClient();
+
+  if (redisClient) {
+    const ip = req.ip;
+    const key = `auth_attempts:${ip}`;
+    
+    try {
+      await redisClient.del(key);
+    } catch (error) {
+      logger.error('Error resetting auth attempts:', error);
+    }
+  }
+
   next();
-};
+});
 
 module.exports = {
   protect,

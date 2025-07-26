@@ -6,290 +6,165 @@ const createTransporter = () => {
   return nodemailer.createTransporter({
     host: process.env.SMTP_HOST,
     port: process.env.SMTP_PORT,
-    secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports
+    secure: process.env.SMTP_PORT === '465',
     auth: {
       user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
+      pass: process.env.SMTP_PASS
+    }
   });
 };
 
 // Email templates
 const emailTemplates = {
   emailVerification: (data) => ({
-    subject: 'Verifique seu email - EventFlow',
+    subject: 'Verifique seu email - Transport App',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
-          <h1 style="color: white; margin: 0;">EventFlow</h1>
-        </div>
-        <div style="padding: 20px; background: #f9f9f9;">
-          <h2 style="color: #333;">Olá ${data.name}!</h2>
-          <p style="color: #666; line-height: 1.6;">
-            Obrigado por se registrar no EventFlow! Para começar a usar sua conta, 
-            por favor verifique seu endereço de email clicando no botão abaixo:
-          </p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${data.verificationUrl}" 
-               style="background: #667eea; color: white; padding: 12px 30px; 
-                      text-decoration: none; border-radius: 5px; display: inline-block;">
-              Verificar Email
-            </a>
-          </div>
-          <p style="color: #666; font-size: 14px;">
-            Se o botão não funcionar, copie e cole este link no seu navegador:<br>
-            <a href="${data.verificationUrl}" style="color: #667eea;">${data.verificationUrl}</a>
-          </p>
-          <p style="color: #666; font-size: 14px;">
-            Este link expira em 24 horas.
-          </p>
-        </div>
-        <div style="background: #333; color: white; padding: 15px; text-align: center; font-size: 12px;">
-          <p>© 2024 EventFlow. Todos os direitos reservados.</p>
-        </div>
+        <h2 style="color: #333;">Olá ${data.name}!</h2>
+        <p>Obrigado por se registrar no Transport App. Para ativar sua conta, clique no link abaixo:</p>
+        <a href="${data.verificationUrl}" style="display: inline-block; background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0;">
+          Verificar Email
+        </a>
+        <p>Se o botão não funcionar, copie e cole este link no seu navegador:</p>
+        <p style="word-break: break-all; color: #666;">${data.verificationUrl}</p>
+        <p>Este link expira em 24 horas.</p>
+        <p>Atenciosamente,<br>Equipe Transport App</p>
       </div>
     `
   }),
 
   passwordReset: (data) => ({
-    subject: 'Redefinição de senha - EventFlow',
+    subject: 'Reset de Senha - Transport App',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
-          <h1 style="color: white; margin: 0;">EventFlow</h1>
-        </div>
-        <div style="padding: 20px; background: #f9f9f9;">
-          <h2 style="color: #333;">Olá ${data.name}!</h2>
-          <p style="color: #666; line-height: 1.6;">
-            Você solicitou a redefinição de sua senha. Clique no botão abaixo para 
-            criar uma nova senha:
-          </p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${data.resetUrl}" 
-               style="background: #667eea; color: white; padding: 12px 30px; 
-                      text-decoration: none; border-radius: 5px; display: inline-block;">
-              Redefinir Senha
-            </a>
-          </div>
-          <p style="color: #666; font-size: 14px;">
-            Se você não solicitou esta redefinição, ignore este email.<br>
-            Este link expira em ${data.expiresIn}.
-          </p>
-          <p style="color: #666; font-size: 14px;">
-            Se o botão não funcionar, copie e cole este link no seu navegador:<br>
-            <a href="${data.resetUrl}" style="color: #667eea;">${data.resetUrl}</a>
-          </p>
-        </div>
-        <div style="background: #333; color: white; padding: 15px; text-align: center; font-size: 12px;">
-          <p>© 2024 EventFlow. Todos os direitos reservados.</p>
-        </div>
+        <h2 style="color: #333;">Olá ${data.name}!</h2>
+        <p>Você solicitou um reset de senha. Clique no link abaixo para criar uma nova senha:</p>
+        <a href="${data.resetUrl}" style="display: inline-block; background-color: #dc3545; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0;">
+          Resetar Senha
+        </a>
+        <p>Se o botão não funcionar, copie e cole este link no seu navegador:</p>
+        <p style="word-break: break-all; color: #666;">${data.resetUrl}</p>
+        <p>Este link expira em 10 minutos.</p>
+        <p>Se você não solicitou este reset, ignore este email.</p>
+        <p>Atenciosamente,<br>Equipe Transport App</p>
       </div>
     `
   }),
 
-  eventRegistration: (data) => ({
-    subject: `Inscrição confirmada - ${data.eventTitle}`,
+  rideConfirmation: (data) => ({
+    subject: 'Corrida Confirmada - Transport App',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
-          <h1 style="color: white; margin: 0;">EventFlow</h1>
+        <h2 style="color: #333;">Sua corrida foi confirmada!</h2>
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+          <h3>Detalhes da Corrida:</h3>
+          <p><strong>Motorista:</strong> ${data.driverName}</p>
+          <p><strong>Veículo:</strong> ${data.vehicleInfo}</p>
+          <p><strong>Origem:</strong> ${data.pickup}</p>
+          <p><strong>Destino:</strong> ${data.destination}</p>
+          <p><strong>Preço:</strong> ${data.price}</p>
+          <p><strong>Estimativa:</strong> ${data.estimatedTime} min</p>
         </div>
-        <div style="padding: 20px; background: #f9f9f9;">
-          <h2 style="color: #333;">Inscrição Confirmada!</h2>
-          <p style="color: #666; line-height: 1.6;">
-            Olá ${data.userName}, sua inscrição para o evento <strong>${data.eventTitle}</strong> 
-            foi confirmada com sucesso!
-          </p>
-          <div style="background: white; padding: 15px; border-radius: 5px; margin: 20px 0;">
-            <h3 style="color: #333; margin-top: 0;">Detalhes do Evento:</h3>
-            <p><strong>Data:</strong> ${data.eventDate}</p>
-            <p><strong>Horário:</strong> ${data.eventTime}</p>
-            <p><strong>Local:</strong> ${data.eventLocation}</p>
-            <p><strong>Status:</strong> <span style="color: green;">Confirmado</span></p>
-          </div>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${data.eventUrl}" 
-               style="background: #667eea; color: white; padding: 12px 30px; 
-                      text-decoration: none; border-radius: 5px; display: inline-block;">
-              Ver Detalhes do Evento
-            </a>
-          </div>
-        </div>
-        <div style="background: #333; color: white; padding: 15px; text-align: center; font-size: 12px;">
-          <p>© 2024 EventFlow. Todos os direitos reservados.</p>
-        </div>
+        <p>O motorista está a caminho. Você receberá uma notificação quando ele chegar.</p>
+        <p>Atenciosamente,<br>Equipe Transport App</p>
       </div>
     `
   }),
 
-  eventReminder: (data) => ({
-    subject: `Lembrete: ${data.eventTitle} amanhã!`,
+  rideCompleted: (data) => ({
+    subject: 'Corrida Concluída - Transport App',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
-          <h1 style="color: white; margin: 0;">EventFlow</h1>
+        <h2 style="color: #333;">Sua corrida foi concluída!</h2>
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+          <h3>Resumo da Corrida:</h3>
+          <p><strong>Motorista:</strong> ${data.driverName}</p>
+          <p><strong>Veículo:</strong> ${data.vehicleInfo}</p>
+          <p><strong>Distância:</strong> ${data.distance} km</p>
+          <p><strong>Duração:</strong> ${data.duration} min</p>
+          <p><strong>Valor Final:</strong> ${data.finalPrice}</p>
         </div>
-        <div style="padding: 20px; background: #f9f9f9;">
-          <h2 style="color: #333;">Lembrete de Evento</h2>
-          <p style="color: #666; line-height: 1.6;">
-            Olá ${data.userName}, não se esqueça que o evento <strong>${data.eventTitle}</strong> 
-            acontece amanhã!
-          </p>
-          <div style="background: white; padding: 15px; border-radius: 5px; margin: 20px 0;">
-            <h3 style="color: #333; margin-top: 0;">Detalhes do Evento:</h3>
-            <p><strong>Data:</strong> ${data.eventDate}</p>
-            <p><strong>Horário:</strong> ${data.eventTime}</p>
-            <p><strong>Local:</strong> ${data.eventLocation}</p>
-            ${data.onlineUrl ? `<p><strong>Link Online:</strong> <a href="${data.onlineUrl}">${data.onlineUrl}</a></p>` : ''}
-          </div>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${data.eventUrl}" 
-               style="background: #667eea; color: white; padding: 12px 30px; 
-                      text-decoration: none; border-radius: 5px; display: inline-block;">
-              Ver Detalhes do Evento
-            </a>
-          </div>
-        </div>
-        <div style="background: #333; color: white; padding: 15px; text-align: center; font-size: 12px;">
-          <p>© 2024 EventFlow. Todos os direitos reservados.</p>
-        </div>
-      </div>
-    `
-  }),
-
-  eventCancellation: (data) => ({
-    subject: `Evento cancelado - ${data.eventTitle}`,
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); padding: 20px; text-align: center;">
-          <h1 style="color: white; margin: 0;">EventFlow</h1>
-        </div>
-        <div style="padding: 20px; background: #f9f9f9;">
-          <h2 style="color: #333;">Evento Cancelado</h2>
-          <p style="color: #666; line-height: 1.6;">
-            Olá ${data.userName}, lamentamos informar que o evento <strong>${data.eventTitle}</strong> 
-            foi cancelado.
-          </p>
-          <div style="background: white; padding: 15px; border-radius: 5px; margin: 20px 0;">
-            <h3 style="color: #333; margin-top: 0;">Detalhes:</h3>
-            <p><strong>Motivo:</strong> ${data.reason}</p>
-            ${data.refundInfo ? `<p><strong>Reembolso:</strong> ${data.refundInfo}</p>` : ''}
-          </div>
-          <p style="color: #666; line-height: 1.6;">
-            Se você pagou pelo evento, o reembolso será processado automaticamente 
-            em até 5 dias úteis.
-          </p>
-        </div>
-        <div style="background: #333; color: white; padding: 15px; text-align: center; font-size: 12px;">
-          <p>© 2024 EventFlow. Todos os direitos reservados.</p>
-        </div>
+        <p>Obrigado por usar o Transport App! Não se esqueça de avaliar sua experiência.</p>
+        <p>Atenciosamente,<br>Equipe Transport App</p>
       </div>
     `
   }),
 
   welcomeEmail: (data) => ({
-    subject: 'Bem-vindo ao EventFlow!',
+    subject: 'Bem-vindo ao Transport App!',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
-          <h1 style="color: white; margin: 0;">EventFlow</h1>
-        </div>
-        <div style="padding: 20px; background: #f9f9f9;">
-          <h2 style="color: #333;">Bem-vindo ao EventFlow!</h2>
-          <p style="color: #666; line-height: 1.6;">
-            Olá ${data.name}, seja bem-vindo à plataforma EventFlow! 
-            Aqui você pode descobrir, participar e organizar eventos incríveis.
-          </p>
-          <div style="background: white; padding: 15px; border-radius: 5px; margin: 20px 0;">
-            <h3 style="color: #333; margin-top: 0;">O que você pode fazer:</h3>
-            <ul style="color: #666;">
-              <li>Descobrir eventos interessantes</li>
-              <li>Inscrever-se em eventos</li>
-              <li>Organizar seus próprios eventos</li>
-              <li>Conectar-se com outros participantes</li>
-              <li>Receber certificados de participação</li>
-            </ul>
-          </div>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${data.dashboardUrl}" 
-               style="background: #667eea; color: white; padding: 12px 30px; 
-                      text-decoration: none; border-radius: 5px; display: inline-block;">
-              Explorar Eventos
-            </a>
-          </div>
-        </div>
-        <div style="background: #333; color: white; padding: 15px; text-align: center; font-size: 12px;">
-          <p>© 2024 EventFlow. Todos os direitos reservados.</p>
-        </div>
+        <h2 style="color: #333;">Bem-vindo, ${data.name}!</h2>
+        <p>Estamos muito felizes em tê-lo conosco no Transport App!</p>
+        <p>Com nossa plataforma, você pode:</p>
+        <ul>
+          <li>Solicitar corridas de forma rápida e segura</li>
+          <li>Acompanhar seu motorista em tempo real</li>
+          <li>Pagar de forma conveniente</li>
+          <li>Avaliar suas experiências</li>
+        </ul>
+        <p>Se você tiver alguma dúvida, nossa equipe de suporte está sempre pronta para ajudar.</p>
+        <p>Atenciosamente,<br>Equipe Transport App</p>
       </div>
     `
   })
 };
 
-// Send email function
+// Send email
 const sendEmail = async ({ email, subject, template, data, html, text }) => {
   try {
     const transporter = createTransporter();
-
+    
     let emailContent = {};
-
+    
     if (template && emailTemplates[template]) {
-      emailContent = emailTemplates[template](data);
+      const templateContent = emailTemplates[template](data);
+      emailContent = {
+        subject: templateContent.subject,
+        html: templateContent.html
+      };
     } else {
       emailContent = {
-        subject: subject,
-        html: html,
-        text: text
+        subject,
+        html,
+        text
       };
     }
 
     const mailOptions = {
       from: process.env.EMAIL_FROM,
       to: email,
-      subject: emailContent.subject,
-      html: emailContent.html,
-      text: emailContent.text
+      ...emailContent
     };
 
     const info = await transporter.sendMail(mailOptions);
-
-    logger.info(`Email sent successfully to ${email}: ${info.messageId}`);
-
-    return {
-      success: true,
-      messageId: info.messageId
-    };
+    logger.info(`Email sent: ${info.messageId}`);
+    return info;
   } catch (error) {
     logger.error('Error sending email:', error);
-    throw new Error('Failed to send email');
+    throw error;
   }
 };
 
 // Send bulk emails
-const sendBulkEmails = async (emails, template, data) => {
+const sendBulkEmails = async (emails, subject, template, data) => {
   try {
     const transporter = createTransporter();
-    const emailContent = emailTemplates[template](data);
+    const templateContent = emailTemplates[template](data);
 
     const mailOptions = {
       from: process.env.EMAIL_FROM,
       to: emails.join(', '),
-      subject: emailContent.subject,
-      html: emailContent.html
+      subject: templateContent.subject,
+      html: templateContent.html
     };
 
     const info = await transporter.sendMail(mailOptions);
-
-    logger.info(`Bulk email sent successfully to ${emails.length} recipients: ${info.messageId}`);
-
-    return {
-      success: true,
-      messageId: info.messageId,
-      recipients: emails.length
-    };
+    logger.info(`Bulk email sent to ${emails.length} recipients: ${info.messageId}`);
+    return info;
   } catch (error) {
     logger.error('Error sending bulk email:', error);
-    throw new Error('Failed to send bulk email');
+    throw error;
   }
 };
 

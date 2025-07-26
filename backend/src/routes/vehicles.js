@@ -1,24 +1,24 @@
 const express = require('express');
-const { protect } = require('../middleware/auth');
-
 const router = express.Router();
+
+const { protect } = require('../middleware/auth');
 
 /**
  * @swagger
- * /api/v1/notifications:
+ * /vehicles:
  *   get:
- *     summary: Get user notifications
- *     tags: [Notifications]
+ *     summary: Obter veículos disponíveis
+ *     tags: [Vehicles]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Notifications retrieved successfully
+ *         description: Lista de veículos
  */
 router.get('/', protect, (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Notifications routes - to be implemented'
+    message: 'Endpoint de veículos - implementar lógica'
   });
 });
 

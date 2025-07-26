@@ -1,24 +1,24 @@
 const express = require('express');
-const { protect, authorize } = require('../middleware/auth');
-
 const router = express.Router();
+
+const { protect } = require('../middleware/auth');
 
 /**
  * @swagger
- * /api/v1/payments:
+ * /routes:
  *   get:
- *     summary: Get payment history
- *     tags: [Payments]
+ *     summary: Obter rotas disponíveis
+ *     tags: [Routes]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Payment history retrieved successfully
+ *         description: Lista de rotas
  */
 router.get('/', protect, (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Payments routes - to be implemented'
+    message: 'Endpoint de rotas - implementar lógica'
   });
 });
 
