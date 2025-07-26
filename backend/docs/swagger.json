@@ -1,0 +1,676 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "EventFlow API",
+    "description": "API para a plataforma EventFlow - Gestão de eventos e conferências",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Matheus Macedo",
+      "email": "matheus@eventflow.com"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3001/api/v1",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.eventflow.com/api/v1",
+      "description": "Production server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "User ID"
+          },
+          "name": {
+            "type": "string",
+            "description": "User full name"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "User email address"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["admin", "organizer", "speaker", "participant"],
+            "description": "User role"
+          },
+          "avatar": {
+            "type": "string",
+            "description": "User avatar URL"
+          },
+          "bio": {
+            "type": "string",
+            "description": "User biography"
+          },
+          "company": {
+            "type": "string",
+            "description": "User company"
+          },
+          "position": {
+            "type": "string",
+            "description": "User position"
+          },
+          "isVerified": {
+            "type": "boolean",
+            "description": "Email verification status"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Account active status"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Account creation date"
+          }
+        }
+      },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "Event ID"
+          },
+          "title": {
+            "type": "string",
+            "description": "Event title"
+          },
+          "description": {
+            "type": "string",
+            "description": "Event description"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["technology", "business", "health", "education", "entertainment", "sports", "science", "arts", "finance", "marketing", "other"],
+            "description": "Event category"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Event start date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Event end date"
+          },
+          "capacity": {
+            "type": "integer",
+            "description": "Maximum number of participants"
+          },
+          "currentRegistrations": {
+            "type": "integer",
+            "description": "Current number of registrations"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "published", "cancelled", "completed"],
+            "description": "Event status"
+          }
+        }
+      },
+      "Registration": {
+        "type": "object",
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "Registration ID"
+          },
+          "event": {
+            "type": "string",
+            "description": "Event ID"
+          },
+          "user": {
+            "type": "string",
+            "description": "User ID"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "approved", "rejected", "cancelled", "waitlist"],
+            "description": "Registration status"
+          },
+          "registrationType": {
+            "type": "string",
+            "enum": ["regular", "early_bird", "vip", "student", "speaker"],
+            "description": "Registration type"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Registration date"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": false
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Validation error details"
+          }
+        }
+      },
+      "Success": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "description": "Success message"
+          },
+          "data": {
+            "type": "object",
+            "description": "Response data"
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register a new user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "password"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 100,
+                    "example": "João Silva"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "joao@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "Senha123"
+                  },
+                  "role": {
+                    "type": "string",
+                    "enum": ["admin", "organizer", "speaker", "participant"],
+                    "default": "participant",
+                    "example": "participant"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Success" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "user": { "$ref": "#/components/schemas/User" },
+                            "token": {
+                              "type": "string",
+                              "description": "JWT token"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "409": {
+            "description": "Email already exists",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Login user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "joao@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "example": "Senha123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Success" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "user": { "$ref": "#/components/schemas/User" },
+                            "token": {
+                              "type": "string",
+                              "description": "JWT token"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Get current user profile",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "User profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Success" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "user": { "$ref": "#/components/schemas/User" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authorized",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get all users (Admin only)",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            },
+            "description": "Number of items per page"
+          },
+          {
+            "in": "query",
+            "name": "role",
+            "schema": {
+              "type": "string",
+              "enum": ["admin", "organizer", "speaker", "participant"]
+            },
+            "description": "Filter by role"
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search by name or email"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Success" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "users": {
+                              "type": "array",
+                              "items": { "$ref": "#/components/schemas/User" }
+                            },
+                            "pagination": {
+                              "type": "object",
+                              "properties": {
+                                "page": { "type": "integer" },
+                                "limit": { "type": "integer" },
+                                "total": { "type": "integer" },
+                                "pages": { "type": "integer" }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authorized",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          },
+          "403": {
+            "description": "Access forbidden",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "tags": ["Events"],
+        "summary": "Get all events",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 10
+            },
+            "description": "Number of items per page"
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by category"
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Search events"
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": ["draft", "published", "cancelled", "completed"]
+            },
+            "description": "Filter by status"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Events retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Success" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "events": {
+                              "type": "array",
+                              "items": { "$ref": "#/components/schemas/Event" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Events"],
+        "summary": "Create new event",
+        "security": [{ "bearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "description", "startDate", "endDate", "category", "capacity"],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "example": "Tech Conference 2024"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Uma conferência sobre as últimas tendências em tecnologia"
+                  },
+                  "startDate": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2024-06-15T09:00:00Z"
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "format": "date-time",
+                    "example": "2024-06-15T18:00:00Z"
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": ["technology", "business", "health", "education", "entertainment", "sports", "science", "arts", "finance", "marketing", "other"],
+                    "example": "technology"
+                  },
+                  "capacity": {
+                    "type": "integer",
+                    "example": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Event created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Success" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "event": { "$ref": "#/components/schemas/Event" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authorized",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Error" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Authentication",
+      "description": "Authentication endpoints"
+    },
+    {
+      "name": "Users",
+      "description": "User management endpoints"
+    },
+    {
+      "name": "Events",
+      "description": "Event management endpoints"
+    },
+    {
+      "name": "Registrations",
+      "description": "Event registration endpoints"
+    },
+    {
+      "name": "Payments",
+      "description": "Payment processing endpoints"
+    },
+    {
+      "name": "Notifications",
+      "description": "Notification management endpoints"
+    }
+  ]
+} 
